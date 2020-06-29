@@ -1,0 +1,77 @@
+\documentclass[12pt]{report}
+
+\usepackage{lineno}
+%\usepackage[pagebackref=true,breaklinks=true,letterpaper=true,colorlinks,bookmarks=false]{hyperref}
+\usepackage[Sonny]{fncychap}
+\usepackage[a4paper, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
+\usepackage{mathptmx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{chemformula}
+%\usepackage{cite}
+\usepackage[colorlinks, linkcolor=black, anchorcolor=black, citecolor=black]{hyperref}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage{minitoc} 
+\usepackage{csquotes}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\usepackage{csquotes}
+\usepackage[style=authoryear]{biblatex}
+\addbibresource{report_ref.bib}
+
+\setlength{\parskip}{0.5em}
+\title{Analysis of Security Mechanisms in Istio}
+\author{\textup{Luigi Ferrettino\\[0.2cm] S254300}}
+
+\linenumbers
+
+\begin{document}
+    \nocite{*}
+    \dominitoc
+    
+    \input{title/title.tex}
+    
+    \tableofcontents
+    
+    \newpage
+
+    \input{chapters/chp1.tex}
+
+    \input{chapters/chp2.tex}
+    
+    \input{chapters/chp3.tex}
+    
+    \input{chapters/chp4.tex}
+
+    \printbibliography[title=Bibliography and Sitography]
+    
+    
+    
+
+\end{document}
