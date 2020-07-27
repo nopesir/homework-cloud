@@ -1,29 +1,31 @@
 \documentclass[12pt]{report}
 
 \usepackage{lineno}
-%\usepackage[pagebackref=true,breaklinks=true,letterpaper=true,colorlinks,bookmarks=false]{hyperref}
 \usepackage[Sonny]{fncychap}
 \usepackage[a4paper, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
 \usepackage{mathptmx}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{chemformula}
-%\usepackage{cite}
-\usepackage[colorlinks, linkcolor=black, anchorcolor=black, citecolor=black]{hyperref}
 \usepackage{graphicx}
 \usepackage[utf8]{inputenc}
 \usepackage{minitoc} 
 \usepackage{csquotes}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage[backend=biber, style=numeric, sorting=none]{biblatex}
+\addbibresource{report_ref.bib}
 
+\usepackage[colorlinks=true,urlcolor=blue,citecolor=blue,linkcolor=blue,linktocpage]{hyperref}
+
+% Code style definition
 \definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codegray}{rgb}{0.95,0.95,0.95}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
 \lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
+    backgroundcolor=\color{codegray},   
     commentstyle=\color{codegreen},
     keywordstyle=\color{magenta},
     numberstyle=\tiny\color{codegray},
@@ -40,16 +42,17 @@
 }
 
 \lstset{style=mystyle}
+%
 
-\usepackage{csquotes}
-\usepackage[style=authoryear]{biblatex}
-\addbibresource{report_ref.bib}
-
+% Title
 \setlength{\parskip}{0.5em}
 \title{Analysis of Security Mechanisms in Istio}
 \author{\textup{Luigi Ferrettino\\[0.2cm] S254300}}
+%
 
+% Comment to remove line numbers
 \linenumbers
+%
 
 \begin{document}
     \nocite{*}

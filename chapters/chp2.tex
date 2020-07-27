@@ -1,5 +1,5 @@
 \chapter{Authentication}
-In this chapter are analyzed all the aspects that build the \textit{authentication} infrastructure in Istio Security. Moreover, two sections will be devoted on \textit{mTLS} and \textit{policies}, ending in an in-depth analysis on the mTLS permissive mode.
+In this chapter are analyzed all the aspects that build the \textit{authentication} infrastructure in Istio Security. Moreover, two sections will be devoted on \textit{mTLS} and \textit{policies}, ending in an in-depth analysis on the mTLS modes.
 \minitoc
 
 \section{Architecture}
@@ -23,10 +23,10 @@ In the Alpha API, the secure authorization steps for service requests are the fo
 
 \noindent Both of these authentication protocols have policies that are stored within Istio's configuration store through a Kubernetes API call. \textit{Pilot} mantains these policies by keeping them as the latest ones through a service sidecar proxy. \\Istio also allows authentication in permissive mode to help users to manage the overall security posture of their environment before it's fully enabled.    
 
-\begin{figure}
+\begin{figure}[ht]
     \centering
-    \includegraphics[scale=0.55]{chapters/images/chp2/arch-auth.png}
-    \caption{Istio Security's authentication architecture, from Istio Docs}
+    \includegraphics[width=0.9\textwidth]{chapters/images/chp2/arch-auth.png}
+    \caption{Istio Security's v1.6 authentication architecture, from Istio Docs}
     \label{fig:autharc}
 \end{figure}
 
@@ -141,6 +141,7 @@ Before the analysis of the real implementation of these two modes, it is really 
 
 The \textit{policy applier} script is part of the old \textit{Pilot Agent}, now merged with the old \textit{Node Agent} in an \textit{Istio Agent} available in each pods. Therefore, enforcing as default mode the \texttt{permissive} is the best possible choice.
 
+\subsection{Protocol buffers}
 In order to understand how the \texttt{.yaml} configuration file early mentioned in this section is converted into an effective authentication policy for mTLS (\textit{PeerAuthentication}), it first must be introduced the mechanism that Istio uses to serialize/deserialize data. In particular Istio defines component-level APIs and common configuration formats by using Google's \texttt{proto3}\footnote{Protocol buffers, a "[...] language-neutral, platform-neutral, extensible mechanism for serializing structured data – think XML, but smaller, faster, and simpler.". Source: \href{https://developers.google.com/protocol-buffers}{Google Dev}} to define the structure of each configuration file and then compile it with \texttt{protoc} in order to automatically generate the \texttt{.go} file with all the functions and variables able to serialize and deserialize, ready to be imported in other files as ready-to-use library. The \texttt{.proto} files are written in order to match each configuration file. For example, starting from a \texttt{.yaml} file:
 
 \begin{lstlisting}
@@ -158,3 +159,60 @@ In order to understand how the \texttt{.yaml} configuration file early mentioned
     // ...
  }
 \end{lstlisting}
+
+The \textit{PeerAuthentication}'s \texttt{proto3} definition is available in Istio's GitHub repository \textit{api}\footnote{\url{https://github.com/istio/api/blob/release-1.6/security/v1beta1/peer_authentication.proto}} alongside with the generated Golang and JSON code.
+
+\subsection{Mutual TLS and secure naming implementation}
+As mentioned in the introduction, Istio uses sidecars to deploy Envoy proxies that intercepts the inbound and outbound traffic from the workload applying encryption or not, based on the configuration loaded. This approach simplifies the implementation of the microservice because it does not depend on the used programming language and does not require libraries or extra software, since it intercepts and manages the packet itself. 
+The certificate and private key of the proxy is provided by the \texttt{istio-agent}, that is responsible for the bootstrap of the sidecar itself, apart from the rotation of the secrets.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\textwidth]{chapters/images/chp2/mtls.png}
+    \caption[Mutual TLS handshake]{Mutual TLS handshake\\Source: \url{https://developers.cloudflare.com/access/service-auth/mtls/}}
+    \label{fig:mtls}
+\end{figure}
+
+In a standard scenario, the TLS handshake authenticates only the server. mTLS enables the authentication of the client too. Taking as example the Fig.~\ref{fig:mtls}, Istio's \texttt{PeerAuthentication} with the Envoy proxy enabled allows secure connection between two pods authenticating both the server and the client (microservices). In order to enforce the authentication policy, the interface \textit{PolicyApplier}\footnote{\url{https://github.com/istio/istio/blob/release-1.6/pilot/pkg/security/authn/policy\_applier.go}} provides essential functionalities to help configure Envoy:
+
+\begin{lstlisting}
+ type PolicyApplier interface {
+    // InboundFilterChain returns inbound filter chain(s) for the given endpoint (aka workload) port to
+    // enforce the underlying authentication policy.
+    InboundFilterChain(endpointPort uint32, sdsUdsPath string, node *model.Proxy,
+        listenerProtocol networking.ListenerProtocol) []networking.FilterChain
+
+    // AuthNFilter returns the JWT HTTP filter to enforce the underlying authentication policy.
+    // It may return nil, if no JWT validation is needed.
+    JwtFilter() *http_conn.HttpFilter
+
+    // AuthNFilter returns the (authn) HTTP filter to enforce the underlying authentication policy.
+    // It may return nil, if no authentication is needed.
+    AuthNFilter(proxyType model.NodeType, port uint32) *http_conn.HttpFilter
+}
+\end{lstlisting}
+
+
+\noindent Each version of authentication policy will implement this interface.
+
+In Istio, each workload is automatically assigned with an identity. Secure naming is a technology used in some mature companies such as Google. Its basic idea is to decouple the names / DNS names of the services from the identities that the services are running as. As an example, the service \texttt{frontend} (resolvable by \texttt{frontend} on DNS server) holds the certificate with identity \texttt{frontend-prod-team}. In Kubernetes, the identity \texttt{frontend-prod-team} is the service account of the workloads that are running the \texttt{frontend} service.
+
+When doing mutual TLS handshake in Istio, the common practice of comparing the server's DNS name against the identities in the certificate (just like a browser verifies that the website presents a certificate with the identity \texttt{www.google.com} when someone is accessing www.google.com) is not correct. This is because the server side gives a certificate with its identity, not its service name. This requires the client to do a secure naming lookup during the handshake. The secure naming lookup asks this question: "Is the identity \texttt{frontend-prod-team} allowed to run the service \texttt{frontend}?" This operation is also called server authorization, as it corresponds to the client authorization done based on the client’s identity on the server side.
+Secure naming offers the following benefits:
+
+    \begin{itemize}
+    \item It offers flexibility by decoupling the identity system from the service naming system. The service’s certificate does not need to be modified when a new DNS name is added or removed for the service.
+    \item The certificate offers the identity of the server, instead of the service name the server is running for. This extra information can be useful for the internal traffic.
+    \item It works well with the Kuberntes resource model. The Istio identity for a Kuberentes pod never changes (unless a trust domain migration happens).
+    \end{itemize}
+
+In Istio, the secure naming information is managed by Pilot. In Kubernetes clusters, Pilot has the information of: 
+
+\begin{enumerate}
+    \item Which pods are running each service.
+    \item Which service account each pod is running as. 
+\end{enumerate}
+
+With these information, Pilot (integrated in \texttt{istiod}) constructs the secure naming information (i.e. which identities are running each service). The secure naming information is encoded in the \texttt{verify\_subject\_alt\_name} field in the CDS (Cluster Discovery Service) information and propagated to each Envoy sidecar.
+
+mTLS and Secure Naming, combined with the secrets rotation implemented by \texttt{istio-agent} and with the default behaviours of the platform, guarantee a high level of security for what concerns the authentication and the encryption of the workloads, without giving away the ease-of-use for the basic tasks.  

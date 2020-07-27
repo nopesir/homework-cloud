@@ -24,7 +24,7 @@ All those components are linked together to build the Istio Security architectur
 
 \begin{figure}
     \centering
-    \includegraphics{chapters/images/chp1/arch-sec.png}
+    \includegraphics[width=0.9\textwidth]{chapters/images/chp1/arch-sec.png}
     \caption{Istio Security's high-level architecture, from Istio Docs}
     \label{fig:hlarch}
 \end{figure}
@@ -39,6 +39,13 @@ In this last case, it is possible that the server charges clients based on the w
 The model of Istio Identity supports flexibility and granularity in order to represent an user, workload or groups of workloads using the \texttt{service identity} to resolve the identity of a request's origin.
 There are several service identities available for different platforms: Kubernetes service account, AWS IAM role/user account and so on. A custom service account too is possible (on-premises).
 \vspace{0.5cm}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.5\textwidth]{chapters/images/chp1/cert-prov.png}
+    \caption{Istio Security's identity provisioning flow, from Istio Docs}
+    \label{fig:idprov}
+\end{figure}
 
 \subsection{Certificate management}
 Istio Security supplies identities with X.509 certificates to every workload. In v1.6, the mechanism is supported by an \texttt{istio-agent} that runs alongside Envoy, assisted by the \texttt{istiod} service in order to automate the certificate rotation (Fig.~\ref{fig:idprov}).
@@ -58,10 +65,5 @@ In order to minimize exposure to compromised keys, the build-in \textit{Public K
 
 \noindent This process is repeated at a certain interval for each service for certificate/key rotation.
 
-\begin{figure}
-    \centering
-    \includegraphics[scale=0.47]{chapters/images/chp1/cert-prov.png}
-    \caption{Istio Security's identity provisioning flow, from Istio Docs}
-    \label{fig:idprov}
-\end{figure}
+
 
