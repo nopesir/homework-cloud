@@ -108,7 +108,7 @@ The old flow (Before) converts the Istio API directly to Envoy API in one step, 
     \item Convert the internal model to the Envoy API.
 \end{enumerate}
 
-This refactor introduces some benefits regarding the coexistance of the old and new API (Alpha and Beta), like the possibility to write the code for converting the model to Envoy API once (it could be shared by both alpha and beta policy), making sure to have consistent behavior for both alpha and beta policy support. Furthermore, with this refactor it is only needed to convert beta policy to the internal model (which is much easier as it’s mostly a 1-1 mapping between the beta policy and the internal model).
+This refactor introduces some benefits regarding the coexistence of the old and new API (Alpha and Beta), like the possibility to write the code for converting the model to Envoy API once (it could be shared by both alpha and beta policy), making sure to have consistent behavior for both alpha and beta policy support. Furthermore, with this refactor it is only needed to convert beta policy to the internal model (which is much easier as it’s mostly a 1-1 mapping between the beta policy and the internal model).
 
 \subsection{Istio API to Internal Model}
 
@@ -171,7 +171,7 @@ The Envoy API is used by the Envoy RBAC filter to finally filter the authorizati
     \label{fig:env-eval}
 \end{figure}
 
-\noindent As it can be seen, the evaluation checks the DENY policies first, denying explicitly if a match occurs. Then, if no DENY policy and no ALLOW policy is defined, the request is implicitly allowed. Finally, if only the ALLOW policies are available, it depends on wether a match occurs or not. If it occurs, then the request is explicitly allowed. If it does not occurs, the request is implicitly denied.
+\noindent As it can be seen, the evaluation checks the DENY policies first, denying explicitly if a match occurs. Then, if no DENY policy and no ALLOW policy is defined, the request is implicitly allowed. Finally, if only the ALLOW policies are available, it depends on whether a match occurs or not. If it occurs, then the request is explicitly allowed. If it does not occurs, the request is implicitly denied.
 The RBAC configuration file is defined by the documentation \cite{v2api} as follows:
 
 \begin{lstlisting}
@@ -235,7 +235,7 @@ This should be the long term solution, since it slightly decreases the processin
 \end{figure}
 
 \subsection{Policies injection and use in Envoy}
-The model is now defined. In order to effectively build the RBAC configuration and inject it into Envoy, a \texttt{builder.go} is used. This script takes the model and the \texttt{AuthorizationPolicy} and returns the RBAC configuration directly in the interested Envoy Proxy. In order to do so, two build funcions are used (one for TCP and one for HTTP):
+The model is now defined. In order to effectively build the RBAC configuration and inject it into Envoy, a \texttt{builder.go} is used. This script takes the model and the \texttt{AuthorizationPolicy} and returns the RBAC configuration directly in the interested Envoy Proxy. In order to do so, two build functions are used (one for TCP and one for HTTP):
 
 
 \begin{lstlisting}[title=\href{https://github.com/istio/istio/blob/4e6e7f49375d84bb35ee614c6b7d38b6c2fd3e7b/pilot/pkg/security/authz/builder/builder.go\#L62-L92}{GitHub permalink}]
@@ -245,7 +245,7 @@ func (b Builder) BuildTCP() []*tcppb.Filter
 
 \noindent They use a common build function (defined later on) that iterates over the policies and generates an RBAC Rule, that is wrapped in a HTTP or TCP filter based on the current need.
 
-When Envoy receives a request, based on wether the drequest is HTTP or TCP, it enables the corresponding callback in order to ALLOW or DENY the request. For example, a TCP request is managed by this function \cite{envoycode}:
+When Envoy receives a request, based on whether the request is HTTP or TCP, it enables the corresponding callback in order to ALLOW or DENY the request. For example, a TCP request is managed by this function \cite{envoycode}:
 
 \begin{lstlisting}[title=\href{https://github.com/envoyproxy/envoy/blob/e9207f4f5e93fcec603cf4949763829010836ae2/source/extensions/filters/network/rbac/rbac_filter.cc\#L22-L63}{GitHub permalink}]
 Network::FilterStatus RoleBasedAccessControlFilter::onData(Buffer::Instance&, bool)

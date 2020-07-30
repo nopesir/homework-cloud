@@ -18,7 +18,7 @@ The general architecture \cite{istiosec} comprises some key units:
     \item \textbf{Mixer}: Other \textit{Envoy proxy extensions} to manage telemetry and auditing.
 \end{itemize}
 
-That in the latest releases where consolidated in the \textbf{istiod} component in order to "simplifies mesh operability, while retaining Istio’s powerful functionality" \cite{}, as specified in the documentation. Furthermore, the releases 1.5 and 1.6 have introduced new Beta Authentication API that are workload-oriented, in contrast with the most used Alpha ones that are service-oriented. In this transient period, this project report will use both of them, depending on the particular example, trying to unify the Istio v1.4/v1.5/v1.6.
+That in the latest releases where consolidated in the \textbf{istiod} component in order to "simplifies mesh operability, while retaining Istio’s powerful functionality" \cite{istiod}, as specified in the documentation. Furthermore, the releases 1.5 and 1.6 have introduced new Beta Authentication API that are workload-oriented, in contrast with the most used Alpha ones that are service-oriented. In this transient period, this project report will use both of them, depending on the particular example, trying to unify the Istio v1.4/v1.5/v1.6.
 
 All those components are linked together to build the Istio Security architecture, showed in Fig.~\ref{fig:hlarch} (v1.6). The control plane interface manages configuration from the API server and configures the Policy Enforcement Points (Envoy) in the data level
 
@@ -34,7 +34,7 @@ All those components are linked together to build the Istio Security architectur
 After a very brief introduction on the big actors of Istio Security, in this section will be faced the common concepts of any security infrastructure: \textit{identity} and \textit{certificate management}.
 
 \subsection{Istio Identity}
-The mutual authentication forces the two components to exchange credentials with identity information when a workload-to-workload communication starts. At this point, both parts analyse the mutual identities in different manners: the client retrieves the secure naming information to see if the server is authorized to run the workload, while the server checks the authorization policies to ensure that the client has rights to access. 
+The mutual authentication forces the two components to exchange credentials with identity information when a workload-to-workload communication starts. At this point, both parts analyze the mutual identities in different manners: the client retrieves the secure naming information to see if the server is authorized to run the workload, while the server checks the authorization policies to ensure that the client has rights to access. 
 In this last case, it is possible that the server charges clients based on the workload that they use or simply audit who accessed what and when.
 
 The model of Istio Identity supports flexibility and granularity in order to represent an user, workload or groups of workloads using the \texttt{service identity} to resolve the identity of a request's origin.

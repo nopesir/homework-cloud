@@ -21,7 +21,7 @@ In the Alpha API, the secure authorization steps for service requests are the fo
     \item[4.] Assuming the identity is actively making requests for the service, passed JWT tokens will continue to be processed and authorized at every request.
 \end{itemize}
 
-\noindent Both of these authentication protocols have policies that are stored within Istio's configuration store through a Kubernetes API call. \textit{Pilot} mantains these policies by keeping them as the latest ones through a service sidecar proxy. \\Istio also allows authentication in permissive mode to help users to manage the overall security posture of their environment before it's fully enabled.    
+\noindent Both of these authentication protocols have policies that are stored within Istio's configuration store through a Kubernetes API call. \textit{Pilot} maintains these policies by keeping them as the latest ones through a service sidecar proxy. \\Istio also allows authentication in permissive mode to help users to manage the overall security posture of their environment before it's fully enabled.    
 
 \begin{figure}[ht]
     \centering
@@ -33,7 +33,7 @@ In the Alpha API, the secure authorization steps for service requests are the fo
 \subsection{Identity}
 In a traditional monolithic environment, identity was defined mostly by IP addresses or hostnames. For instance, we can recall the Apache HTTPD server rules, written using IPs.
 
-In a distributed and microservices-oriented environment such as Kubernetes, due to its decoupled nature, the workload can be deployed on any machine, so IP addresses may change at any time. As it has been aforementioned, identity is either at origin or transport. At origin, the identity is defined as a subject (human) that is authenticated in various ways. However, at the transport layes, the old way of using IP is no longer possible due to the dynamic nature of the workload.
+In a distributed and microservices-oriented environment such as Kubernetes, due to its decoupled nature, the workload can be deployed on any machine, so IP addresses may change at any time. As it has been aforementioned, identity is either at origin or transport. At origin, the identity is defined as a subject (human) that is authenticated in various ways. However, at the transport layer, the old way of using IP is no longer possible due to the dynamic nature of the workload.
 
 The \textit{Secure Production Identity Framework for Everyone} (SPIFFE)\footnote{See SPIFFE \href{https://spiffe.io/}{website}} specification is used to assign an identity to a workload, and it remains the same regardless of where it runs in a distributed environment. Istio has chosen a particular naming convention to provide an identity to a workload:
 
@@ -43,7 +43,7 @@ The \textit{Secure Production Identity Framework for Everyone} (SPIFFE)\footnote
            <cluster-name><ns><name-space><sa><service-account-name>
 \end{lstlisting}
 
-\noindent As it can be seen, the \texttt{spiffe} prefix is mandated by the SPIFFE specification (such as HTTP). Then, \texttt{cluster.local} is the name of a cluster (it should be different for different Kubernetes clusters if the intent is to use Istio to span multiple clusters using a single control plane). Then, \texttt{ns} is fixed, followed by \texttt{name-space}, where te workload is running. Finally, \texttt{sa} is fixed and \texttt{service-account-name} is the actual service account.
+\noindent As it can be seen, the \texttt{spiffe} prefix is mandated by the SPIFFE specification (such as HTTP). Then, \texttt{cluster.local} is the name of a cluster (it should be different for different Kubernetes clusters if the intent is to use Istio to span multiple clusters using a single control plane). Then, \texttt{ns} is fixed, followed by \texttt{name-space}, where the workload is running. Finally, \texttt{sa} is fixed and \texttt{service-account-name} is the actual service account.
 
 \textit{Citadel} is the implementation of the SPIFFE specification and is used to build a security solution in an untrusted network. Due to this, it is sometimes referred as security in a zero-trust network. Citadel issues SVID to the workload by signing the X.509 certificates upon a CSR being sent by a node agent running on every node on behalf of the Istio sidecar proxy running next to a workload. Once the proxy sidecar receives the certificate, it presents it to other workloads.
 
@@ -70,7 +70,7 @@ Secure naming is critical for multiple reasons, and the following scenarios will
 
 \begin{itemize}
     \item A number of servers are running a service called \textit{Accounts}, and only the \textit{Payable} identity is allowed to authenticate these transactions.
-    \item If a rogue user has access to the certificate and keys for another identity called \textit{Finance}, their objective is to inspect all of the traversed dta from the client, understand the service, and so on.
+    \item If a rogue user has access to the certificate and keys for another identity called \textit{Finance}, their objective is to inspect all of the traversed data from the client, understand the service, and so on.
     \item The rogue user will set up and deploy an imposter server with the exact keys and certificates that have been detailed for \textit{Finance}.
     \item If the rogue user has hacked the DNS file or service discovery and mapped \textit{Accounts} to the imposter server.
 \end{itemize}
@@ -127,7 +127,7 @@ As it has already been mentioned before, the Istio's mTLS \textit{permissive mod
 
 On one hand, this mode allows much more flexibility and simplicity on non-Istio service management. On the other hand, it drastically decreases the confidentiality by threatening the integrity of the exchanged messages between the parties. Plain text traffic could lead to really dangerous attacks that could break the entire cluster. A famous example is known as \textit{man-in-the-middle} (MITM) attack\footnote{Hijack attack, "[...] is an attack where the attacker secretly relays and possibly alters the communications between two parties who believe that they are directly communicating with each other.". Source: \href{https://en.wikipedia.org/wiki/Man-in-the-middle_attack}{Wikipedia.com}}.
 
-Before the analysis of the real implementation of these two modes, it is really important to understand what are the default behaviours of the platform, because security must be integrated as part of the entire design process, including the definitions of the default configuration. More in details, from the documentation Istio states that "By default, Istio configures the destination workloads using PERMISSIVE mode." AAAAAA, but is this a good idea? The permissive mode is a general choice that can mislead the DevOps to think that \textit{everything} works out-of-the-box. Surprisingly, it does. The default mode is PERMISSIVE, but it is not set and left alone: Istio automatically enables mTLS traffic on pods that have proxies enabled and plain text traffic on pods without proxies. This is absolutely the best possible choice that joins security with ease of use. The default behaviour of the AuthN policy is set by using the Beta APIs through the \texttt{policy\_applier.go} in the \texttt{composePeerAuthentication()} function \cite{istiocode}:
+Before the analysis of the real implementation of these two modes, it is really important to understand what are the default behaviors of the platform, because security must be integrated as part of the entire design process, including the definitions of the default configuration. More in details, from the documentation Istio states that "By default, Istio configures the destination workloads using PERMISSIVE mode." \cite{istiosec}, but is this a good idea? The permissive mode is a general choice that can mislead the DevOps to think that \textit{everything} works out-of-the-box. Surprisingly, it does. The default mode is PERMISSIVE, but it is not set and left alone: Istio automatically enables mTLS traffic on pods that have proxies enabled and plain text traffic on pods without proxies. This is absolutely the best possible choice that joins security with ease of use. The default behavior of the AuthN policy is set by using the Beta APIs through the \texttt{policy\_applier.go} in the \texttt{composePeerAuthentication()} function \cite{istiocode}:
 \vspace{0.3cm}
 \begin{lstlisting}[title={\href{https://github.com/istio/istio/blob/ec8b8ba452b372b8ceaf8a5dea973bc561bf39b4/pilot/pkg/security/authn/v1beta1/policy\_applier.go\#L411}{GitHub permalink}}]
  outputPolicy := v1beta1.PeerAuthentication{
@@ -216,4 +216,4 @@ In Istio, the secure naming information is managed by Pilot. In Kubernetes clust
 
 With these information, Pilot (integrated in \texttt{istiod}) constructs the secure naming information (i.e. which identities are running each service). The secure naming information is encoded in the \texttt{verify\_subject\_alt\_name} field in the CDS (Cluster Discovery Service) information and propagated to each Envoy sidecar.
 
-mTLS and Secure Naming, combined with the secrets rotation implemented by \texttt{istio-agent} and with the default behaviours of the platform, guarantee a high level of security for what concerns the authentication and the encryption of the workloads, without giving away the ease-of-use for the basic tasks.  
+mTLS and Secure Naming, combined with the secrets rotation implemented by \texttt{istio-agent} and with the default behavior of the platform, guarantee a high level of security for what concerns the authentication and the encryption of the workloads, without giving away the ease-of-use for the basic tasks.  
