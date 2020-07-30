@@ -1,5 +1,5 @@
 \chapter{Introducing Istio Security}
-In a World that points towards cloud architectures and microservices-based applications, Istio seems the key to remove the strains from DevOps teams and simplify development, testing and observability. Indeed, it "lets you successfully, and efficiently, run a distributed microservice architecture, and provides a uniform way to secure, connect, and monitor microservices."\footnote{\href{https://istio.io/docs/concepts/what-is-istio/}{Istio's documentation}}.
+In a World that points towards cloud architectures and microservices-based applications, Istio seems the key to remove the strains from DevOps teams and simplify development, testing and observability. Indeed, it "lets you successfully, and efficiently, run a distributed microservice architecture, and provides a uniform way to secure, connect, and monitor microservices." \cite{istio}.
 One of the interesting aspects is related to \textit{how} Security is managed and \textit{how} the corresponding functionalities are really implemented. This chapter will be devoted to a general introduction of Istio Security, by analyzing the high-level architecture and some important keywords.
 
 \minitoc
@@ -9,7 +9,7 @@ One of the interesting aspects is related to \textit{how} Security is managed an
 Istio Security is designed in order to fulfill important microservices' security needs (e.g. access control, traffic encryption, fine-grained access policies, auditing tools) by exploiting \textit{security by default}, \textit{defense in depth}, and \textit{zero-trust network}.
 Before examining in depth these concepts, it is necessary an high-level view of  Istio Security.
 
-The general architecture comprises some key units:
+The general architecture \cite{istiosec} comprises some key units:
 
 \begin{itemize}
     \item \textbf{Pilot}: An \textit{API server}, that issues policies (for authentication and authorization) and other information to the proxies.
@@ -18,7 +18,7 @@ The general architecture comprises some key units:
     \item \textbf{Mixer}: Other \textit{Envoy proxy extensions} to manage telemetry and auditing.
 \end{itemize}
 
-That in the latest releases where consolidated in the \textbf{istiod} component in order to "simplifies mesh operability, while retaining Istio’s powerful functionality", as specified in the documentation. Furthermore, the releases 1.5 and 1.6 have introduced new Beta Authentication API that are workload-oriented, in contrast with the most used Alpha ones that is service-oriented. In this transient period, this project report will use both of them, depending on the particular example, trying to unify the Istio v1.4/v1.5/v1.6.
+That in the latest releases where consolidated in the \textbf{istiod} component in order to "simplifies mesh operability, while retaining Istio’s powerful functionality" \cite{}, as specified in the documentation. Furthermore, the releases 1.5 and 1.6 have introduced new Beta Authentication API that are workload-oriented, in contrast with the most used Alpha ones that are service-oriented. In this transient period, this project report will use both of them, depending on the particular example, trying to unify the Istio v1.4/v1.5/v1.6.
 
 All those components are linked together to build the Istio Security architecture, showed in Fig.~\ref{fig:hlarch} (v1.6). The control plane interface manages configuration from the API server and configures the Policy Enforcement Points (Envoy) in the data level
 

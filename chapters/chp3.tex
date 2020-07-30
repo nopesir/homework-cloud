@@ -3,7 +3,7 @@ In this chapter are analyzed all the aspects that build the \textit{authorizatio
 \minitoc
 
 \section{Architecture}
-Istio Security gives the possibility to perform authorization for workload-to-workload and user-to-workload. Moreover, it supports any TCP protocols, in particular HTTP, HTTPS and gRPC. It is flexible, since custom conditions can be defined on Istio attributes and it uses only a single and simple API (\texttt{AuthorizationPolicy}) to store the policies and enforce the authorizations directly on the Envoy proxies.
+Istio Security gives the possibility to perform authorization for workload-to-workload and user-to-workload. Moreover, it supports any TCP protocols, in particular HTTP, HTTPS and gRPC. It is flexible, since custom conditions can be defined on Istio attributes and it uses only a single and simple beta API (\texttt{AuthorizationPolicy}) to store the policies and enforce the authorizations directly on the Envoy proxies.
 In Fig.~\ref{fig:archauthz} a schematic description of the general authorization architecture is shown.
 
 \begin{figure}[ht]
@@ -17,7 +17,7 @@ In Fig.~\ref{fig:archauthz} a schematic description of the general authorization
 More in details, once that an administrator applies an authorization policy (using the API server provided by \texttt{istiod}), the policy is split and sent to the interested workload. Here, Envoy takes the policy and runs an authorization controller that, based on the future request, evaluates the context with the policy and \texttt{DENY} or \texttt{ALLOW} the authorization. If no authorization policy is available for a particular workload, then the access control is disabled and all the requests are accepted. For multiple \texttt{AuthorizationPolicy}, the \texttt{DENY} takes precedence over the \texttt{ALLOW} and the specified policies are added by preserving the previously added ones (additively).
 
 \section{Policies}
-As already mentioned, the only way of defining custom policies is through the Istio API by using the \texttt{AuthorizationPolicy} kind in the \texttt{.yaml}. As an example, the following policy is chosen:
+As already mentioned, the only way of defining custom policies is through the Istio API by using the \texttt{AuthorizationPolicy} kind in the \texttt{.yaml}. As an example, the following policy is chosen \cite{authzpolicy}:
 
 \begin{lstlisting}
 apiVersion: security.istio.io/v1beta1
@@ -77,7 +77,7 @@ spec:
 
 \noindent This second policy will be literally "added" to the first one, but since it is a deny policy it will be applied first. The resulting policy will be the intersection of the previously applied ones: as a result, only the source from namespace \texttt{foo} is allowed. 
 
-Moreover, Istio allows custom conditions by using \texttt{when} in combination with the \texttt{key} values\footnote{See \url{https://istio.io/latest/docs/reference/config/security/conditions/}} that can be compatible with HTTP, TCP or both of them. For example, the policy can match only defined IP addresses in TCP or HTTP by using \texttt{source.ip} or even match in HTTP-only a defined JWT Token value, for example the audience (\texttt{request.auth.audiences}). The compatibility with TCP-only workload enables a restriction on some HTTP-only fields: 
+Moreover, Istio allows custom conditions by using \texttt{when} in combination with the \texttt{key} values\footnote{See \url{https://istio.io/v1.6/docs/reference/config/security/conditions/}} that can be compatible with HTTP, TCP or both of them. For example, the policy can match only defined IP addresses in TCP or HTTP by using \texttt{source.ip} or even match in HTTP-only a defined JWT Token value, for example the audience (\texttt{request.auth.audiences}). The compatibility with TCP-only workload enables a restriction on some HTTP-only fields: 
 
 \begin{itemize}
     \item \texttt{request\_principals}
@@ -172,7 +172,7 @@ The Envoy API is used by the Envoy RBAC filter to finally filter the authorizati
 \end{figure}
 
 \noindent As it can be seen, the evaluation checks the DENY policies first, denying explicitly if a match occurs. Then, if no DENY policy and no ALLOW policy is defined, the request is implicitly allowed. Finally, if only the ALLOW policies are available, it depends on wether a match occurs or not. If it occurs, then the request is explicitly allowed. If it does not occurs, the request is implicitly denied.
-The RBAC configuration file is defined by the documentation as follows:
+The RBAC configuration file is defined by the documentation \cite{v2api} as follows:
 
 \begin{lstlisting}
 action: ALLOW
@@ -234,7 +234,7 @@ This should be the long term solution, since it slightly decreases the processin
     \label{fig:rbac-filter2}
 \end{figure}
 
-\subsection{Final considerations}
+\subsection{Policies injection and use in Envoy}
 The model is now defined. In order to effectively build the RBAC configuration and inject it into Envoy, a \texttt{builder.go} is used. This script takes the model and the \texttt{AuthorizationPolicy} and returns the RBAC configuration directly in the interested Envoy Proxy. In order to do so, two build funcions are used (one for TCP and one for HTTP):
 
 
@@ -245,7 +245,7 @@ func (b Builder) BuildTCP() []*tcppb.Filter
 
 \noindent They use a common build function (defined later on) that iterates over the policies and generates an RBAC Rule, that is wrapped in a HTTP or TCP filter based on the current need.
 
-When Envoy receives a request, based on wether the drequest is HTTP or TCP, it enables the corresponding callback in order to ALLOW or DENY the request. For example, a TCP request is managed by this function:
+When Envoy receives a request, based on wether the drequest is HTTP or TCP, it enables the corresponding callback in order to ALLOW or DENY the request. For example, a TCP request is managed by this function \cite{envoycode}:
 
 \begin{lstlisting}[title=\href{https://github.com/envoyproxy/envoy/blob/e9207f4f5e93fcec603cf4949763829010836ae2/source/extensions/filters/network/rbac/rbac_filter.cc\#L22-L63}{GitHub permalink}]
 Network::FilterStatus RoleBasedAccessControlFilter::onData(Buffer::Instance&, bool)
