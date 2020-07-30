@@ -26,7 +26,7 @@ In the Alpha API, the secure authorization steps for service requests are the fo
 \begin{figure}[ht]
     \centering
     \includegraphics[width=0.9\textwidth]{chapters/images/chp2/arch-auth.png}
-    \caption{Istio Security's v1.6 authentication architecture, from Istio Docs}
+    \caption{Istio Security's v1.6 authentication architecture}
     \label{fig:autharc}
 \end{figure}
 
@@ -142,6 +142,7 @@ Before the analysis of the real implementation of these two modes, it is really 
 The \textit{policy applier} script is part of the old \textit{Pilot Agent}, now merged with the old \textit{Node Agent} in an \textit{Istio Agent} available in each pods. Therefore, enforcing as default mode the \texttt{permissive} is the best possible choice.
 
 \subsection{Protocol buffers}
+\label{protobuf}
 In order to understand how the \texttt{.yaml} configuration file early mentioned in this section is converted into an effective authentication policy for mTLS (\textit{PeerAuthentication}), it first must be introduced the mechanism that Istio uses to serialize/deserialize data. In particular Istio defines component-level APIs and common configuration formats by using Google's \texttt{proto3}\footnote{Protocol buffers, a "[...] language-neutral, platform-neutral, extensible mechanism for serializing structured data – think XML, but smaller, faster, and simpler.". Source: \href{https://developers.google.com/protocol-buffers}{Google Dev}} to define the structure of each configuration file and then compile it with \texttt{protoc} in order to automatically generate the \texttt{.go} file with all the functions and variables able to serialize and deserialize, ready to be imported in other files as ready-to-use library. The \texttt{.proto} files are written in order to match each configuration file. For example, starting from a \texttt{.yaml} file:
 
 \begin{lstlisting}
@@ -168,7 +169,7 @@ The certificate and private key of the proxy is provided by the \texttt{istio-ag
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.5\textwidth]{chapters/images/chp2/mtls.png}
+    \includegraphics[width=0.65\textwidth]{chapters/images/chp2/mtls.png}
     \caption[Mutual TLS handshake]{Mutual TLS handshake\\Source: \url{https://developers.cloudflare.com/access/service-auth/mtls/}}
     \label{fig:mtls}
 \end{figure}
