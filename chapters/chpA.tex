@@ -293,7 +293,7 @@ spec:
 EOF
 \end{lstlisting}
 
-\noindent With this new configuration, the request on 9000/tcp will be denied, because it is the default behaviour of Istio when using specific HTTP fields (\texttt{methods}) in generic TCP workloads:
+\noindent With this new configuration, the request on 9000/tcp will be denied, because it is the default behavior of Istio when using specific HTTP fields (\texttt{methods}) in generic TCP workloads:
 
 \begin{lstlisting}
 $ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
