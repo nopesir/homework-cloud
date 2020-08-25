@@ -1,11 +1,375 @@
 \appendix
 \chapter{User manual}
-In this appendix is shown how to reproduce on Istio the carried out analyses concerning the \textit{authorization} and \textit{authentication} topics.
+This appendix explains how to reproduce on Istio the carried out analyses concerning the \textit{authorization} and \textit{authentication} topics. In particular, the authentication section explains how to demonstrate the mTLS secure presence with or without the plain text of the permissive mode enabled. Furthermore, since the authorization analysis is entirely developed by analyzing the code of Envoy and Istio, in the last section is shown an example concerning the TCP traffic filtering as an authorization application in Istio.
 \minitoc
 
 \section{Introduction}
+As a fundamental prerequisite, it is important to have a fully functional Istio v1.6 installation by following the official documentation\footnote{\url{https://istio.io/v1.6/docs/setup/getting-started/\#download}}. The only difference with respect to the guide is that the configuration profile, that must be the \textit{default} one:
+
+\begin{lstlisting}
+$ istioctl install
+\end{lstlisting}
 
 
 \section{Authentication: permissive/strict modes}
+In order to recreate the first analysis, two services (\texttt{httpbin} and \texttt{sleep}) in three namespaces (\texttt{foo}, \texttt{bar} and \texttt{legacy}) are created. Only \texttt{foo} and \texttt{bar} have the correspondent \texttt{httpbin} and \texttt{sleep} with an Envoy sidecar. The third namespace (\texttt{legacy}) will be populated with services that does not have the proxy enabled.
 
-\section{Authorization: policy enforcement}
+The \texttt{httpbin} service is available in the Istio samples and is nothing more than a HTTP testing service that can be used for experimenting with all kinds of Istio features. If it is used with the \texttt{sleep} service (a Ubuntu container with curl installed that can be used as a request source for invoking other services), it can be a powerful testing tool.
+
+In order to recreate the aforementioned state of the Istio mesh, the two namespaces \texttt{foo} and \texttt{bar} are created and the two services are deployed with a sidecar proxy:
+
+\begin{lstlisting}[basicstyle = \scriptsize]
+$ kubectl create ns foo
+$ kubectl apply -f <(istioctl kube-inject -f samples/httpbin/httpbin.yaml) -n foo
+$ kubectl apply -f <(istioctl kube-inject -f samples/sleep/sleep.yaml) -n foo
+
+$ kubectl create ns bar
+$ kubectl apply -f <(istioctl kube-inject -f samples/httpbin/httpbin.yaml) -n bar
+$ kubectl apply -f <(istioctl kube-inject -f samples/sleep/sleep.yaml) -n bar
+\end{lstlisting}
+
+\noindent While the third namespace \texttt{legacy} is created and the two services are deployed without a sidecar Envoy:
+
+\begin{lstlisting}
+$ kubectl create ns legacy
+$ kubectl apply -f samples/httpbin/httpbin.yaml -n legacy
+$ kubectl apply -f samples/sleep/sleep.yaml -n legacy
+\end{lstlisting}
+
+\noindent In order to check the reachability of all the services in all the namespace, an iteration of curl can be done from each \texttt{sleep} to each \texttt{httpbin}:
+
+\begin{lstlisting}
+$ for from in "foo" "bar" "legacy"; do for to in "foo" "bar" "legacy";  \
+  do kubectl exec $(kubectl get pod -l app=sleep -n ${from} \
+  -o jsonpath={.items..metadata.name}) \
+  -c sleep -n ${from} -- curl "http://httpbin.${to}:8000/ip" \ 
+  -s -o /dev/null -w "sleep.${from} \
+  to httpbin.${to}: %{http_code}\n"; done; done
+\end{lstlisting}
+
+\noindent And it must print the following output:
+
+\begin{lstlisting}
+sleep.foo to httpbin.foo: 200
+sleep.foo to httpbin.bar: 200
+sleep.foo to httpbin.legacy: 200
+sleep.bar to httpbin.foo: 200
+sleep.bar to httpbin.bar: 200
+sleep.bar to httpbin.legacy: 200
+sleep.legacy to httpbin.foo: 200
+sleep.legacy to httpbin.bar: 200
+sleep.legacy to httpbin.legacy: 200
+\end{lstlisting}
+
+With this configured mesh, it can be instantly verified that Istio applies automatically the permissive mode, enabling mTLS for services with an Envoy proxy and plain text for services without a sidecar proxy. In particular, in order to acknowledge that mTLS is enabled between two services, it is enough to check the \texttt{X-Forwarded-Client-Cert}. This header is injected by the proxy and it is a clear evidence that mTLS is enabled. For example, in the \texttt{foo} namespace:
+
+\begin{lstlisting}
+$ kubectl exec $(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name}) -c sleep -n foo -- curl \
+   http://httpbin.foo:8000/headers -s | grep X-Forwarded-Client-Cert
+
+\end{lstlisting}
+
+\noindent This command makes a request from \texttt{sleep} to \texttt{httpbin/header} and greps the \texttt{Cert} header, resulting in this output:
+
+\begin{lstlisting}[basicstyle = \fontsize{9}{10}\selectfont]
+"X-Forwarded-Client-Cert": "By=spiffe://cluster.local/ns/foo/sa/httpbin;Hash=<redacted>"
+\end{lstlisting}
+
+\noindent That demonstrates that mTLS is automatically enabled. While, by checking in the \texttt{legacy} namespace a request from the \texttt{foo} namespace, this command output is empty:
+\newpage
+\begin{lstlisting}
+$ kubectl exec $(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name}) -c sleep -n foo -- curl \ 
+   http://httpbin.legacy:8000/headers -s | grep \
+   X-Forwarded-Client-Cert
+\end{lstlisting}
+
+\noindent Because they communicate in plain text.
+
+If the strict mode is enabled globally in the mesh by applying the following configuration:
+
+\begin{lstlisting}
+$ kubectl apply -f - <<EOF
+apiVersion: "security.istio.io/v1beta1"
+kind: "PeerAuthentication"
+metadata:
+  name: "default"
+  namespace: "istio-system"
+spec:
+  mtls:
+    mode: STRICT
+EOF
+\end{lstlisting}
+
+\noindent Then it can be verified that only mTLS traffic is enabled in the entire mesh. Plain text is disabled when one of the services does not have a sidecar Envoy. To check the new configuration, the same command is used:
+
+\begin{lstlisting}
+$ for from in "foo" "bar" "legacy"; do for to in "foo" "bar" "legacy";  \
+  do kubectl exec $(kubectl get pod -l app=sleep -n ${from} \
+  -o jsonpath={.items..metadata.name}) \
+  -c sleep -n ${from} -- curl "http://httpbin.${to}:8000/ip" \ 
+  -s -o /dev/null -w "sleep.${from} \
+  to httpbin.${to}: %{http_code}\n"; done; done
+\end{lstlisting}
+
+\noindent Now the output will be different with respect to the previous test:
+
+\begin{lstlisting}
+sleep.foo to httpbin.foo: 200
+sleep.foo to httpbin.bar: 200
+sleep.foo to httpbin.legacy: 200
+sleep.bar to httpbin.foo: 200
+sleep.bar to httpbin.bar: 200
+sleep.bar to httpbin.legacy: 200
+sleep.legacy to httpbin.foo: 000
+command terminated with exit code 56
+sleep.legacy to httpbin.bar: 000
+command terminated with exit code 56
+sleep.legacy to httpbin.legacy: 200
+\end{lstlisting}
+
+\noindent The request will fail when is done by a client without a proxy (\texttt{sleep} in \texttt{legacy}) to a server with a proxy (\texttt{httpbin} in \texttt{bar} and \texttt{foo}), since mTLS is strictly required now.
+
+\noindent To cleanup the environment, finally:
+
+\begin{lstlisting}
+$ kubectl delete peerauthentication -n istio-system default
+\end{lstlisting}
+
+\section{Authorization: TCP traffic filtering}
+This section explains how to set up TCP filtering in a namespace between two services: \texttt{tcp-echo} and \texttt{sleep}. While the second one is already used in the previous example, the first one is a simple service that replies to a message by adding "hello" at the beginning of the origin message (e.g. if a message "world" is sent, this service replies with "hello world"). The two services are available in the Istio example, so the steps are pretty straightforward: create the namespace \texttt{foo} and deploy the two services with the Proxy sidecar (by using \texttt{kube-inject}). From the terminal:
+
+\begin{lstlisting}[basicstyle = \scriptsize]
+$ kubectl create ns foo
+$ kubectl apply -f <(istioctl kube-inject -f samples/tcp-echo/tcp-echo.yaml) -n foo
+$ kubectl apply -f <(istioctl kube-inject -f samples/sleep/sleep.yaml) -n foo
+\end{lstlisting}
+
+\noindent The \texttt{tcp-echo} service listens on ports 9000/tcp, 9001/tcp and 9002/tcp. The K8S service object only declares the ports 9000/tcp and 9001/tcp (omitting port 9002/tcp). In order to verify that the communication works on port 9000/tcp and 9001/tcp, two messages are sent. On port 9000/tcp:
+
+\label{commands}
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9000" | nc tcp-echo 9000' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\noindent That must output the following:
+
+\begin{lstlisting}
+hello port 9000
+connection succeeded
+\end{lstlisting}
+
+\noindent While, on port 9001/tcp:
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9001" | nc tcp-echo 9001' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\noindent That must output the following:
+
+\begin{lstlisting}
+hello port 9001
+connection succeeded
+\end{lstlisting}
+
+\noindent For what concerns the port 9002/tcp, since it is not defined in the K8S service object, the traffic has to be sent directly to the Pod by using its IP address. First, the IP address is retrieved:
+
+\begin{lstlisting}
+$ TCP_ECHO_IP=$(kubectl get pod "$(kubectl get pod -l app=tcp-echo \
+   -n foo -o jsonpath={.items..metadata.name})" -n foo -o \
+   jsonpath="{.status.podIP}")
+\end{lstlisting}
+
+\noindent Then, the request is sent using the retrieved IP:
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c "echo \"port 9002\" | nc $TCP_ECHO_IP 9002" | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\noindent With the output that must be the following:
+
+\begin{lstlisting}
+hello port 9002
+connection succeeded
+\end{lstlisting}
+
+In order to configure access control for a TCP workload, it has been created a configuration named \texttt{tcp-policy} (for the \texttt{tcp-echo} workload in the \texttt{foo} namespace) in order to allow requests to ports 9000/tcp and 9001/tcp: 
+
+\begin{lstlisting}
+$ kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: tcp-policy
+  namespace: foo
+spec:
+  selector:
+    matchLabels:
+      app: tcp-echo
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+       ports: ["9000", "9001"]
+EOF
+\end{lstlisting}
+
+\noindent The configuration is pretty straightforward and, since only ports 9000 and 9001 are allowed, automatically requests on 9002 must be denied (even if the port is not in the K8S service object). In order to verify that ports 9000/tcp and 9001/tcp are reachable, the commands will be the previously used ones:
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9000" | nc tcp-echo 9000' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\noindent That must output the following:
+
+\begin{lstlisting}
+hello port 9000
+connection succeeded
+\end{lstlisting}
+
+\noindent And
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9001" | nc tcp-echo 9001' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\noindent That must output the following:
+
+\begin{lstlisting}
+hello port 9001
+connection succeeded
+\end{lstlisting}
+
+\noindent This time, the request to 9002/tcp will be denied (the TCP\_ECHO\_IP variable set is omitted):
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c "echo \"port 9002\" | nc $TCP_ECHO_IP 9002" | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\noindent With the output that must be:
+
+\begin{lstlisting}
+connection rejected
+\end{lstlisting}
+
+If the configuration is updated by only allowing GET methods on port 9000/tcp, the configuration will be:
+
+\begin{lstlisting}
+$ kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: tcp-policy
+  namespace: foo
+spec:
+  selector:
+    matchLabels:
+      app: tcp-echo
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: ["GET"]
+        ports: ["9000"]
+EOF
+\end{lstlisting}
+
+\noindent With this new configuration, the request on 9000/tcp will be denied, because it is the default behaviour of Istio when using specific HTTP fields (\texttt{methods}) in generic TCP workloads:
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9000" | nc tcp-echo 9000' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\begin{lstlisting}
+connection rejected
+\end{lstlisting}
+
+\noindent As expected, the request on 9001/tcp too is denied too, because it does not match any rules:
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9001" | nc tcp-echo 9001' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\begin{lstlisting}
+connection rejected
+\end{lstlisting}
+
+As a final configuration injection, a DENY one is chosen:
+
+\begin{lstlisting}
+$ kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: tcp-policy
+  namespace: foo
+spec:
+  selector:
+    matchLabels:
+      app: tcp-echo
+  action: DENY
+  rules:
+  - to:
+    - operation:
+        methods: ["GET"]
+        ports: ["9000"]
+EOF
+\end{lstlisting}
+
+\noindent By updating the authorization policy chain with this configuration, only the GET requests on port 9000/tcp are denied. This means that all other requests are allowed. On port 9000/tcp Istio ignores the HTTP-only fields in an invalid DENY rule:
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9000" | nc tcp-echo 9000' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\begin{lstlisting}
+connection rejected
+\end{lstlisting}
+
+\noindent And for port 9001/tcp, since the request do not match the ports in the DENY policy, the authorization is ALLOWED:
+
+\begin{lstlisting}
+$ kubectl exec "$(kubectl get pod -l app=sleep -n foo -o \
+   jsonpath={.items..metadata.name})" -c sleep -n foo -- sh \ 
+   -c 'echo "port 9001" | nc tcp-echo 9001' | grep \
+   "hello" && echo 'connection succeeded' || echo 'connection rejected'
+\end{lstlisting}
+
+\begin{lstlisting}
+hello port 9001
+connection succeeded
+\end{lstlisting}
+
+Finally, to clean up the workspace, from the terminal:
+
+\begin{lstlisting}
+$ kubectl delete namespace foo
+\end{lstlisting}
